@@ -12,7 +12,7 @@ permissions:
 jobs:
   coco-fix:
     if: startsWith(github.event.issue.title, '[coco-agent]')
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS]
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
@@ -32,19 +32,21 @@ jobs:
           mkdir -p "${HOME}/.snowflake"
           printf '%s\n' \
             '[default]' \
-            "account = \"${SNOWFLAKE_ACCOUNT}\"" \
-            'authenticator = "WORKLOAD_IDENTITY"' \
+            "account                    = \"${SNOWFLAKE_ACCOUNT}\"" \
+            'authenticator              = "WORKLOAD_IDENTITY"' \
             'workload_identity_provider = "OIDC"' \
-            "token = \"${SNOWFLAKE_TOKEN}\"" \
-            "warehouse = \"${SNOWFLAKE_WAREHOUSE}\"" \
-            "role = \"${SNOWFLAKE_ROLE}\"" \
+            "token                      = \"${SNOWFLAKE_TOKEN}\"" \
+            "warehouse                  = \"${SNOWFLAKE_WAREHOUSE}\"" \
+            "role                       = \"${SNOWFLAKE_ROLE}\"" \
             > "${HOME}/.snowflake/connections.toml"
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
       - name: Install cortex
         run: |
-          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
-          SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
+          if ! cortex exec --help > /dev/null 2>&1; then
+            curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
+            SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
+          fi
 
       - name: Run CoCo
         env:
