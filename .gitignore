@@ -11,8 +11,8 @@ connections.toml
 config.toml
 *.toml.local
 
-# Cortex Code workspace state
-.cortex/plans/
+# Runner (local self-hosted runner — never commit the binary)
+.github/runner/
 
 # CI artifacts
 /tmp/

@@ -42,6 +42,9 @@ jobs:
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
       - name: Install cortex
+        # Skipped automatically when cortex is already on PATH (e.g. local self-hosted runner).
+        # The skill patches runs-on to [self-hosted, local] for local testing;
+        # in that case cortex exec --help succeeds and the download is skipped.
         run: |
           if ! cortex exec --help > /dev/null 2>&1; then
             curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
