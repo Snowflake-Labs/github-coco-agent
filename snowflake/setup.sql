@@ -26,6 +26,10 @@ GRANT USAGE ON WAREHOUSE <% PREFIX %>_GITHUB_COCO_AGENT_WH
   TO ROLE <% PREFIX %>_GITHUB_COCO_AGENT_ROLE;
 
 -- Cortex access
+-- Required for cortex exec to call Snowflake Cortex AI endpoints (REST API).
+-- cortex exec authenticates via OIDC, then calls POST /api/v2/cortex/inference:complete.
+-- Snowflake checks for this database role on the session before serving any LLM request.
+-- Without it: auth succeeds but every model inference call returns 403 Forbidden.
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER
   TO ROLE <% PREFIX %>_GITHUB_COCO_AGENT_ROLE;
 
