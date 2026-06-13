@@ -11,8 +11,11 @@ connections.toml
 config.toml
 *.toml.local
 
-# Runner (local self-hosted runner — never commit the binary)
+# Runner (local self-hosted runner — never commit the binary or its logs/pid)
 .github/runner/
+
+# Scaffold state manifest — machine-generated, contains resource names and step progress
+.coco-agent/
 
 # CI artifacts
 /tmp/
