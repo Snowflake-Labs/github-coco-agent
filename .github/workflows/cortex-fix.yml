@@ -1,0 +1,110 @@
+name: CoCo — Fix on [coco-agent] issue
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  id-token: write # Snowflake OIDC
+  contents: write # push branch
+  issues: write # post comment
+  pull-requests: write # create + merge PR
+
+jobs:
+  coco-fix:
+    if: startsWith(github.event.issue.title, '[coco-agent]')
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Snowflake connection (OIDC)
+        uses: snowflakedb/snowflake-cli-action@v2
+        with:
+          use-oidc: true
+
+      - name: Write cortex connections.toml
+        run: |
+          mkdir -p "${HOME}/.snowflake"
+          printf '%s\n' \
+            '[default]' \
+            "account = \"${SNOWFLAKE_ACCOUNT}\"" \
+            'authenticator = "WORKLOAD_IDENTITY"' \
+            'workload_identity_provider = "OIDC"' \
+            "token = \"${SNOWFLAKE_TOKEN}\"" \
+            "warehouse = \"${SNOWFLAKE_WAREHOUSE}\"" \
+            "role = \"${SNOWFLAKE_ROLE}\"" \
+            > "${HOME}/.snowflake/connections.toml"
+          chmod 600 "${HOME}/.snowflake/connections.toml"
+
+      - name: Install cortex
+        run: |
+          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
+          SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
+
+      - name: Run CoCo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          envsubst < .cortex/prompts/fix.md \
+            | cortex exec --file - \
+              -c default --bypass --no-history \
+              --allowed "Read" --allowed "Edit" --allowed "Write" \
+              --allowed "Bash(git *)" --allowed "Bash(gh *)" --allowed "Bash(cortex *)" \
+              2>&1 | tee /tmp/coco-output.txt
+
+      - name: Commit + push branch
+        id: push
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          SUBJECT=$(echo "${ISSUE_TITLE}" | sed 's/^\[coco-agent\][[:space:]]*//')
+          BRANCH="coco/fix-${GITHUB_RUN_ID}"
+          git config user.name "CoCo Agent"
+          git config user.email "coco-agent@snowflake.com"
+          git checkout -b "${BRANCH}"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            git commit \
+              -m "fix(coco-agent): ${SUBJECT} [skip ci]" \
+              --trailer "Generated-By: Cortex Code (CoCo)" \
+              --trailer "Issue: #${{ github.event.issue.number }}"
+            git push origin "${BRANCH}"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
+            echo "subject=${SUBJECT}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Open PR + auto-merge
+        if: steps.push.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --title "fix(coco-agent): ${{ steps.push.outputs.subject }}" \
+            --body "Automated fix. Triggered by issue #${{ github.event.issue.number }}.\
+              Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --head "${{ steps.push.outputs.branch }}"
+          gh pr merge "${{ steps.push.outputs.branch }}" --squash --auto --delete-branch
+
+      - name: Comment on issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          MSG="CoCo completed the task (run [${{ github.run_id }}](${RUN_URL}))."
+          [ "${{ steps.push.outputs.has_changes }}" = "true" ] && MSG="${MSG} PR opened for review."
+          [ "${{ steps.push.outputs.has_changes }}" = "false" ] && MSG="${MSG} No file changes needed."
+          gh issue comment ${{ github.event.issue.number }} --body "${MSG}"
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f "${HOME}/.snowflake/connections.toml"

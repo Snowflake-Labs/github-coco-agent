@@ -1,0 +1,14 @@
+---
+extends: default
+
+rules:
+    line-length:
+        max: 120
+        level: warning
+    document-start: disable # GitHub Actions workflows don't use ---
+    truthy:
+        allowed-values: ["true", "false", "on", "off"]
+        level: warning
+    comments:
+        min-spaces-from-content: 1 # allow single-space inline comments
+    comments-indentation: disable # shell comments inside block scalars trip this

@@ -1,0 +1,61 @@
+name: CoCo — Scan for bugs
+on:
+  push:
+    branches: [main]
+    paths: ["demo/**"]
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # GitHub OIDC token for Snowflake WIF
+  contents: read
+  issues: write # create issues + labels + comments
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Snowflake connection (OIDC)
+        uses: snowflakedb/snowflake-cli-action@v2
+        with:
+          use-oidc: true
+
+      - name: Write cortex connections.toml
+        run: |
+          mkdir -p "${HOME}/.snowflake"
+          printf '%s\n' \
+            '[default]' \
+            "account = \"${SNOWFLAKE_ACCOUNT}\"" \
+            'authenticator = "WORKLOAD_IDENTITY"' \
+            'workload_identity_provider = "OIDC"' \
+            "token = \"${SNOWFLAKE_TOKEN}\"" \
+            "warehouse = \"${SNOWFLAKE_WAREHOUSE}\"" \
+            "role = \"${SNOWFLAKE_ROLE}\"" \
+            > "${HOME}/.snowflake/connections.toml"
+          chmod 600 "${HOME}/.snowflake/connections.toml"
+
+      - name: Install cortex
+        run: |
+          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
+          SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
+
+      - name: Scan for bugs
+        run: |
+          cortex exec --file .cortex/prompts/scan.md \
+            -c default --bypass --no-history \
+            --allowed "Read" --allowed "Bash(gh issue create *)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f "${HOME}/.snowflake/connections.toml"

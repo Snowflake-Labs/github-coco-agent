@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Snowflake credentials — never commit
+.snowflake/
+connections.toml
+config.toml
+*.toml.local
+
+# Cortex Code workspace state
+.cortex/plans/
+
+# CI artifacts
+/tmp/
+*.env.local
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
