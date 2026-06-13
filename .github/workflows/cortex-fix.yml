@@ -12,7 +12,7 @@ permissions:
 jobs:
   coco-fix:
     if: startsWith(github.event.issue.title, '[coco-agent]')
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
