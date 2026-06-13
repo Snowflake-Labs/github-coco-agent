@@ -84,6 +84,62 @@ flowchart TD
 
 ---
 
+## Scan & Fix Behaviour
+
+### Issue splitting — least-conflict path
+
+When the scan finds multiple bugs, each issue is scoped to one location
+so that parallel fix agents produce non-conflicting PRs:
+
+| Scenario | Rule | Reason |
+|---|---|---|
+| Same bug pattern in two different functions | Two separate issues | Diffs don't overlap → independent PRs, each auto-mergeable |
+| Two bugs inside the same function body | One combined issue | Fixes would overlap → safer as a single PR |
+| Bugs in different files | Always separate | No conflict possible |
+
+### Priority ordering
+
+Issues are emitted in priority order so serial fix agents tackle the most
+dangerous problems first:
+
+| Priority | Category | Label |
+|---|---|---|
+| P0 | Security (SQL injection, hardcoded credentials, insecure auth) | `coco-agent-security` |
+| P1 | Correctness (wrong names, undefined refs, logic errors) | `coco-agent-correctness` |
+
+Every issue also carries the `coco-agent` trigger label.
+
+### Least-conflict fix path
+
+Before branching, the fix agent checks for open PRs already touching the
+same file. If one exists, the new branch is based on that PR's branch
+rather than `main`, forming a fix chain:
+
+```
+main ← fix/issue-1 ← fix/issue-2   (same file, chained)
+main ← fix/issue-3                  (different file, independent)
+```
+
+This prevents merge conflicts when multiple fixes land in parallel.
+
+### Controlling what the agent scans
+
+Add a `.agentignore` file at the repository root to exclude paths from
+scanning. Syntax follows `.gitignore` rules:
+
+```
+# Skip generated and vendored code
+__pycache__/
+.venv/
+vendor/
+dist/
+```
+
+The fix agent does **not** read `.agentignore` — if an issue was raised for
+a file, the fix proceeds regardless.
+
+---
+
 ## Create Your Repo From This Template
 
 1. Go to [github.com/Snowflake-Labs/github-coco-agent](https://github.com/Snowflake-Labs/github-coco-agent)
