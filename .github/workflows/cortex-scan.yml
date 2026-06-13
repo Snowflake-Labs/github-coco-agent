@@ -25,11 +25,16 @@ jobs:
           persist-credentials: false
 
       - name: Setup Snowflake connection (OIDC)
+        # Skipped on self-hosted (local) runners — snow is already installed and
+        # ~/.snowflake/connections.toml already exists from local dev setup.
+        if: runner.environment == 'github-hosted'
         uses: snowflakedb/snowflake-cli-action@v2
         with:
           use-oidc: true
 
       - name: Write cortex connections.toml
+        # Skipped on self-hosted runners — local connections.toml is used as-is.
+        if: runner.environment == 'github-hosted'
         run: |
           mkdir -p "${HOME}/.snowflake"
           printf '%s\n' \
