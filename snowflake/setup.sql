@@ -33,10 +33,12 @@ GRANT USAGE ON WAREHOUSE <% PREFIX %>_GITHUB_COCO_AGENT_WH
 GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER
   TO ROLE <% PREFIX %>_GITHUB_COCO_AGENT_ROLE;
 
--- WORKLOAD_IDENTITY user
--- Note: WORKLOAD_IDENTITY users have no password — omit it entirely.
+-- WORKLOAD_IDENTITY user (TYPE = SERVICE, auth configured inline via WORKLOAD_IDENTITY)
+-- Note: TYPE = SERVICE is the correct type for non-human service accounts.
+-- EXTERNAL_OAUTH_ISSUER / SUBJECT are NOT user properties — the correct property
+-- is WORKLOAD_IDENTITY = (TYPE = OIDC ISSUER = '...' SUBJECT = '...').
 CREATE USER IF NOT EXISTS <% PREFIX %>_GITHUB_COCO_AGENT_USER
-  TYPE              = WORKLOAD_IDENTITY
+  TYPE              = SERVICE
   DEFAULT_ROLE      = <% PREFIX %>_GITHUB_COCO_AGENT_ROLE
   DEFAULT_WAREHOUSE = <% PREFIX %>_GITHUB_COCO_AGENT_WH;
 GRANT ROLE <% PREFIX %>_GITHUB_COCO_AGENT_ROLE
@@ -48,5 +50,8 @@ GRANT ROLE <% PREFIX %>_GITHUB_COCO_AGENT_ROLE
 -- Note: The GitHub Actions OIDC token audience is set automatically by
 --       the Snowflake CLI action (use-oidc: true) — no manual config needed.
 ALTER USER <% PREFIX %>_GITHUB_COCO_AGENT_USER SET
-  EXTERNAL_OAUTH_ISSUER = 'https://token.actions.githubusercontent.com'
-  SUBJECT               = 'repo:<% REPO_PATH %>:ref:refs/heads/main';
+  WORKLOAD_IDENTITY = (
+    TYPE    = OIDC
+    ISSUER  = 'https://token.actions.githubusercontent.com'
+    SUBJECT = 'repo:<% REPO_PATH %>:ref:refs/heads/main'
+  );
