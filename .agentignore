@@ -1,0 +1,47 @@
+# .agentignore — Agent scan exclusions
+#
+# Gitignore-style patterns. The CoCo scan agent reads this file before
+# scanning and skips any files or directories matching these patterns.
+#
+# Syntax:
+#   - Lines starting with # are comments
+#   - Blank lines are ignored
+#   - Patterns follow .gitignore glob rules
+#   - Prefix with / to anchor to repo root (e.g. /vendor/)
+#   - Prefix with ! to un-ignore a previously ignored pattern
+#
+# Add your own exclusions below to control what the agent scans.
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Build and distribution
+dist/
+build/
+*.so
+
+# Node.js
+node_modules/
+
+# Coverage and test reports
+.coverage
+htmlcov/
+.pytest_cache/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+
+# Generated / vendored
+vendor/

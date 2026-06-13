@@ -4,9 +4,13 @@ Python codebase as [coco-agent] issues that the fix agent can resolve autonomous
 without further clarification.
 
 [Requirements]
+- Read `.agentignore` from the repository root before scanning, if it exists.
+  Parse it as gitignore-style patterns (lines starting with # are comments;
+  blank lines are ignored). Skip any files or directories matching these patterns.
+  If `.agentignore` does not exist, scan all Python files.
 - Identify security vulnerabilities: SQL injection, hardcoded credentials, insecure authentication
 - Identify correctness issues: wrong column/variable names, undefined references, logic errors
-- Scan all Python files in the repository
+- Scan all Python files in the repository that are not excluded by `.agentignore`
 - Issue body must include: file path, line number, the problematic code snippet,
   why it is a problem, and what a correct fix should look like (without writing the fix)
 
