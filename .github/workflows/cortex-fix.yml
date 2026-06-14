@@ -31,6 +31,10 @@ jobs:
           git remote set-url origin \
             "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}"
 
+      - name: Set isolated Snowflake config dir (self-hosted)
+        if: runner.environment != 'github-hosted'
+        run: echo "SNOWFLAKE_HOME=/tmp/coco-${{ github.run_id }}" >> $GITHUB_ENV
+
       - name: Setup Snowflake connection (OIDC)
         # Skipped on self-hosted (local) runners.
         if: runner.environment == 'github-hosted'
@@ -54,10 +58,10 @@ jobs:
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
       - name: Write cortex connections.toml (self-hosted — PAT)
-        # Uses scaffold service user + PAT — no OIDC on local runners.
+        # Writes to SNOWFLAKE_HOME (/tmp/coco-<run_id>) — never touches ~/.snowflake/
         if: runner.environment != 'github-hosted'
         run: |
-          mkdir -p "${HOME}/.snowflake"
+          mkdir -p "${SNOWFLAKE_HOME}"
           printf '%s\n' \
             '[default]' \
             "account       = \"${SNOWFLAKE_ACCOUNT}\"" \
@@ -66,8 +70,8 @@ jobs:
             "token         = \"${SNOWFLAKE_PAT}\"" \
             "warehouse     = \"${SNOWFLAKE_WAREHOUSE}\"" \
             "role          = \"${SNOWFLAKE_ROLE}\"" \
-            > "${HOME}/.snowflake/connections.toml"
-          chmod 600 "${HOME}/.snowflake/connections.toml"
+            > "${SNOWFLAKE_HOME}/connections.toml"
+          chmod 600 "${SNOWFLAKE_HOME}/connections.toml"
 
       - name: Install cortex
         # Skipped automatically when cortex is already on PATH (e.g. local self-hosted runner).
@@ -138,4 +142,6 @@ jobs:
 
       - name: Clean up credentials
         if: always()
-        run: rm -f "${HOME}/.snowflake/connections.toml"
+        run: |
+          rm -f "${HOME}/.snowflake/connections.toml"   # github-hosted OIDC path
+          rm -rf "/tmp/coco-${{ github.run_id }}"        # self-hosted PAT path
