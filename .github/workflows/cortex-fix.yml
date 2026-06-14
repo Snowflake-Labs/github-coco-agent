@@ -7,7 +7,7 @@ permissions:
   id-token: write # Snowflake OIDC
   contents: write # push branch
   issues: write # post comment
-  pull-requests: write # create + merge PR
+  pull-requests: write # create PR
 
 jobs:
   coco-fix:
@@ -17,21 +17,28 @@ jobs:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
+      - name: Configure git credentials
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote set-url origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}"
+
       - name: Setup Snowflake connection (OIDC)
-        # Skipped on self-hosted (local) runners — snow is already installed and
-        # ~/.snowflake/connections.toml already exists from local dev setup.
+        # Skipped on self-hosted (local) runners.
         if: runner.environment == 'github-hosted'
         uses: snowflakedb/snowflake-cli-action@v2
         with:
           use-oidc: true
 
-      - name: Write cortex connections.toml
-        # Skipped on self-hosted runners — local connections.toml is used as-is.
+      - name: Write cortex connections.toml (github-hosted — OIDC)
         if: runner.environment == 'github-hosted'
         run: |
           mkdir -p "${HOME}/.snowflake"
@@ -43,6 +50,22 @@ jobs:
             "token                      = \"${SNOWFLAKE_TOKEN}\"" \
             "warehouse                  = \"${SNOWFLAKE_WAREHOUSE}\"" \
             "role                       = \"${SNOWFLAKE_ROLE}\"" \
+            > "${HOME}/.snowflake/connections.toml"
+          chmod 600 "${HOME}/.snowflake/connections.toml"
+
+      - name: Write cortex connections.toml (self-hosted — PAT)
+        # Uses scaffold service user + PAT — no OIDC on local runners.
+        if: runner.environment != 'github-hosted'
+        run: |
+          mkdir -p "${HOME}/.snowflake"
+          printf '%s\n' \
+            '[default]' \
+            "account       = \"${SNOWFLAKE_ACCOUNT}\"" \
+            "user          = \"${SNOWFLAKE_USER}\"" \
+            'authenticator = "programmatic_access_token"' \
+            "token         = \"${SNOWFLAKE_PAT}\"" \
+            "warehouse     = \"${SNOWFLAKE_WAREHOUSE}\"" \
+            "role          = \"${SNOWFLAKE_ROLE}\"" \
             > "${HOME}/.snowflake/connections.toml"
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
@@ -93,17 +116,15 @@ jobs:
             echo "subject=${SUBJECT}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Open PR + auto-merge
+      - name: Open PR
         if: steps.push.outputs.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create \
             --title "fix(coco-agent): ${{ steps.push.outputs.subject }}" \
-            --body "Automated fix. Triggered by issue #${{ github.event.issue.number }}.\
-              Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --body "Automated fix. Triggered by issue #${{ github.event.issue.number }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --head "${{ steps.push.outputs.branch }}"
-          gh pr merge "${{ steps.push.outputs.branch }}" --squash --auto --delete-branch
 
       - name: Comment on issue
         env:

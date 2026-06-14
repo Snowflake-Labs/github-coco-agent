@@ -19,6 +19,8 @@ jobs:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+      SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -32,8 +34,7 @@ jobs:
         with:
           use-oidc: true
 
-      - name: Write cortex connections.toml
-        # Skipped on self-hosted runners — local connections.toml is used as-is.
+      - name: Write cortex connections.toml (github-hosted — OIDC)
         if: runner.environment == 'github-hosted'
         run: |
           mkdir -p "${HOME}/.snowflake"
@@ -45,6 +46,23 @@ jobs:
             "token                      = \"${SNOWFLAKE_TOKEN}\"" \
             "warehouse                  = \"${SNOWFLAKE_WAREHOUSE}\"" \
             "role                       = \"${SNOWFLAKE_ROLE}\"" \
+            > "${HOME}/.snowflake/connections.toml"
+          chmod 600 "${HOME}/.snowflake/connections.toml"
+
+      - name: Write cortex connections.toml (self-hosted — PAT)
+        # Uses the scaffold service user + PAT — no OIDC on local runners.
+        # Ensures the runner uses exactly the same Snowflake identity as production.
+        if: runner.environment != 'github-hosted'
+        run: |
+          mkdir -p "${HOME}/.snowflake"
+          printf '%s\n' \
+            '[default]' \
+            "account       = \"${SNOWFLAKE_ACCOUNT}\"" \
+            "user          = \"${SNOWFLAKE_USER}\"" \
+            'authenticator = "programmatic_access_token"' \
+            "token         = \"${SNOWFLAKE_PAT}\"" \
+            "warehouse     = \"${SNOWFLAKE_WAREHOUSE}\"" \
+            "role          = \"${SNOWFLAKE_ROLE}\"" \
             > "${HOME}/.snowflake/connections.toml"
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
