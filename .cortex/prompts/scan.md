@@ -1,8 +1,9 @@
 [Goal]
 Surface actionable security and correctness vulnerabilities across the repository's
-Python codebase as [coco-agent] issues that the fix agent can resolve autonomously
-without further clarification, structured to minimise fix conflicts when multiple
-agents run in parallel.
+Python codebase as issues that the fix agent can resolve autonomously without further
+clarification, structured to minimise fix conflicts when multiple agents run in parallel.
+Decide per issue whether to auto-fix or request human review based on scoring and the
+team's configured fix ceiling.
 
 [Requirements]
 - Read `.agentignore` from the repository root before scanning, if it exists.
@@ -23,22 +24,47 @@ Issue splitting rules (least-conflict path):
   one issue. Their fixes would overlap; a single PR is safer.
 - Do not raise issues for style preferences, formatting, or minor readability concerns
 - Issue descriptions must be precise and self-contained so the fix agent needs no follow-up
-
-Ordering and labels:
 - Emit security issues before correctness issues (P0 security, P1 correctness).
   This ensures serial fix agents tackle the dangerous bugs first.
-- Apply two labels to every issue: "coco-agent" (trigger label) and either
-  "coco-agent-security" or "coco-agent-correctness" (category label).
 - If no actionable issues are found, exit cleanly without creating any issues
+
+Fix-mode routing:
+Each issue must be assessed against three risk dimensions and routed to either
+auto-fix or human review according to the team ceiling in `$COCO_MAX_AUTO`
+(default: `conservative` when unset).
+
+Risk dimensions — score each finding:
+  SEVERITY:   critical | high | medium | low
+  COMPLEXITY: high | medium | low
+    low:    single file, 1-5 lines changed, no branching logic change
+    medium: 1-2 files, 5-20 lines, or conditional logic change
+    high:   3+ files, 20+ lines, or architectural/async change
+  CONFIDENCE: high | medium | low  (certainty about the correct fix)
+
+Routing policy by ceiling:
+  off:          → needs-review for all issues
+  aggressive:   → auto-fix when CONFIDENCE >= medium
+  conservative: → auto-fix only when SEVERITY=low AND COMPLEXITY=low AND CONFIDENCE=high
+                   all other combinations → needs-review
 
 [Output]
 For each issue found, in priority order (security first):
-  gh issue create \
-    --title "[coco-agent] Bug: <short description>" \
-    --body "<file>:<function>\n\nCode: <problematic snippet>\nProblem: <why it is a bug>\nExpected: <what the correct behaviour should be>" \
-    --label "coco-agent" \
-    --label "coco-agent-security"  # or coco-agent-correctness
+
+  If FIX_DECISION == "auto-fix":
+    gh issue create \
+      --title "[coco-agent] Bug: <short description>" \
+      --body "<file>:<function>\n\nCode: <problematic snippet>\nProblem: <why it is a bug>\nExpected: <what the correct behaviour should be>\n\n---\n_Severity: SEVERITY | Complexity: COMPLEXITY | Confidence: CONFIDENCE | Fix mode: auto_" \
+      --label "coco-agent" \
+      --label "coco:auto-fix" \
+      --label "coco-agent-security"  # or coco-agent-correctness
+
+  If FIX_DECISION == "needs-review":
+    gh issue create \
+      --title "Bug: <short description>" \
+      --body "<file>:<function>\n\nCode: <problematic snippet>\nProblem: <why it is a bug>\nExpected: <what the correct behaviour should be>\n\n---\n_Severity: SEVERITY | Complexity: COMPLEXITY | Confidence: CONFIDENCE | Fix mode: needs-review_\n_To trigger fix: comment `@coco fix` on this issue._" \
+      --label "coco:needs-review" \
+      --label "coco-agent-security"  # or coco-agent-correctness
 
 Final stdout summary (always print, even when zero issues):
-  "Scan complete. Found N issue(s) [P0: X security, P1: Y correctness]: [titles]"  — or —
+  "Scan complete. Found N issue(s) [auto-fix: X, needs-review: Y] [P0: A security, P1: B correctness]. Ceiling: COCO_MAX_AUTO"  — or —
   "Scan complete. No actionable issues found."

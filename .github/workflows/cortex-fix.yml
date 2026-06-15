@@ -1,7 +1,18 @@
 name: CoCo — Fix on [coco-agent] issue
 on:
   issues:
-    types: [opened]
+    types: [opened, labeled]
+  workflow_call:
+    inputs:
+      issue_number:
+        type: number
+        required: true
+      issue_title:
+        type: string
+        required: true
+      issue_body:
+        type: string
+        required: true
 
 permissions:
   id-token: write # Snowflake OIDC
@@ -11,7 +22,13 @@ permissions:
 
 jobs:
   coco-fix:
-    if: startsWith(github.event.issue.title, '[coco-agent]')
+    # Triggered by: issues opened with [coco-agent] title (auto-fix path)
+    #             | issues labeled with coco:auto-fix
+    #             | workflow_call from cortex-comment-fix.yml (@coco fix)
+    if: |
+      github.event_name == 'workflow_call' ||
+      (github.event.action == 'opened'  && startsWith(github.event.issue.title, '[coco-agent]')) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'coco:auto-fix')
     runs-on: ubuntu-latest
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
@@ -19,6 +36,10 @@ jobs:
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
+      # Resolve issue context — workflow_call inputs take priority over event payload
+      ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
+      ISSUE_TITLE: ${{ inputs.issue_title  || github.event.issue.title }}
+      ISSUE_BODY: ${{ inputs.issue_body   || github.event.issue.body }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,7 +57,6 @@ jobs:
         run: echo "SNOWFLAKE_HOME=/tmp/coco-${{ github.run_id }}" >> $GITHUB_ENV
 
       - name: Setup Snowflake connection (OIDC)
-        # Skipped on self-hosted (local) runners.
         if: runner.environment == 'github-hosted'
         uses: snowflakedb/snowflake-cli-action@v2
         with:
@@ -58,7 +78,6 @@ jobs:
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
       - name: Write cortex connections.toml (self-hosted — PAT)
-        # Writes to SNOWFLAKE_HOME (/tmp/coco-<run_id>) — never touches ~/.snowflake/
         if: runner.environment != 'github-hosted'
         run: |
           mkdir -p "${SNOWFLAKE_HOME}"
@@ -74,9 +93,6 @@ jobs:
           chmod 600 "${SNOWFLAKE_HOME}/connections.toml"
 
       - name: Install cortex
-        # Skipped automatically when cortex is already on PATH (e.g. local self-hosted runner).
-        # The skill patches runs-on to [self-hosted, local] for local testing;
-        # in that case cortex exec --help succeeds and the download is skipped.
         run: |
           if ! cortex exec --help > /dev/null 2>&1; then
             curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
@@ -86,8 +102,6 @@ jobs:
       - name: Run CoCo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           envsubst < .cortex/prompts/fix.md \
             | cortex exec --file - \
@@ -98,8 +112,6 @@ jobs:
 
       - name: Commit + push branch
         id: push
-        env:
-          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           SUBJECT=$(echo "${ISSUE_TITLE}" | sed 's/^\[coco-agent\][[:space:]]*//')
           BRANCH="coco/fix-${GITHUB_RUN_ID}"
@@ -113,7 +125,7 @@ jobs:
             git commit \
               -m "fix(coco-agent): ${SUBJECT} [skip ci]" \
               --trailer "Generated-By: Cortex Code (CoCo)" \
-              --trailer "Issue: #${{ github.event.issue.number }}"
+              --trailer "Issue: #${ISSUE_NUMBER}"
             git push origin "${BRANCH}"
             echo "has_changes=true" >> $GITHUB_OUTPUT
             echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
@@ -127,7 +139,7 @@ jobs:
         run: |
           gh pr create \
             --title "fix(coco-agent): ${{ steps.push.outputs.subject }}" \
-            --body "Automated fix. Triggered by issue #${{ github.event.issue.number }}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --body "Automated fix. Triggered by issue #${ISSUE_NUMBER}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --head "${{ steps.push.outputs.branch }}"
 
       - name: Comment on issue
@@ -136,12 +148,12 @@ jobs:
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           MSG="CoCo completed the task (run [${{ github.run_id }}](${RUN_URL}))."
-          [ "${{ steps.push.outputs.has_changes }}" = "true" ] && MSG="${MSG} PR opened for review."
+          [ "${{ steps.push.outputs.has_changes }}" = "true" ]  && MSG="${MSG} PR opened for review."
           [ "${{ steps.push.outputs.has_changes }}" = "false" ] && MSG="${MSG} No file changes needed."
-          gh issue comment ${{ github.event.issue.number }} --body "${MSG}"
+          gh issue comment "${ISSUE_NUMBER}" --body "${MSG}"
 
       - name: Clean up credentials
         if: always()
         run: |
-          rm -f "${HOME}/.snowflake/connections.toml"   # github-hosted OIDC path
-          rm -rf "/tmp/coco-${{ github.run_id }}"        # self-hosted PAT path
+          rm -f "${HOME}/.snowflake/connections.toml"
+          rm -rf "/tmp/coco-${{ github.run_id }}"

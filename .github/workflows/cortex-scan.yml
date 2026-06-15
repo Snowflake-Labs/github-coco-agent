@@ -71,21 +71,51 @@ jobs:
 
       - name: Install cortex
         # Skipped automatically when cortex is already on PATH (e.g. local self-hosted runner).
-        # The skill patches runs-on to [self-hosted, local] for local testing;
-        # in that case cortex exec --help succeeds and the download is skipped.
         run: |
           if ! cortex exec --help > /dev/null 2>&1; then
             curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
             SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
           fi
 
+      - name: Ensure coco labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "coco:auto-fix" \
+            --color "0075CA" --description "CoCo will fix this automatically" 2>/dev/null || true
+          gh label create "coco:needs-review" \
+            --color "E4E669" --description "Review before CoCo fixes" 2>/dev/null || true
+          gh label create "coco-agent" \
+            --color "5319E7" --description "CoCo agent issue" 2>/dev/null || true
+          gh label create "coco-agent-security" \
+            --color "D73A4A" --description "Security vulnerability" 2>/dev/null || true
+          gh label create "coco-agent-correctness" \
+            --color "0E8A16" --description "Correctness issue" 2>/dev/null || true
+
+      - name: Read fix ceiling
+        run: |
+          CONFIG_VALUE=$(python3 -c "
+          import re, pathlib
+          cfg = pathlib.Path('.github/coco-config.yml')
+          m = re.search(r'max_auto:\s*(\w+)', cfg.read_text()) if cfg.exists() else None
+          print(m.group(1) if m else 'conservative')
+          " 2>/dev/null || echo "conservative")
+          VARS_VALUE="${{ vars.COCO_MAX_AUTO }}"
+          MAX_AUTO="${VARS_VALUE:-$CONFIG_VALUE}"
+          SOURCE=$( [ -n "$VARS_VALUE" ] && echo "vars.COCO_MAX_AUTO override" || echo ".github/coco-config.yml" )
+          echo "COCO_MAX_AUTO=${MAX_AUTO}" >> $GITHUB_ENV
+          echo "::notice::Fix ceiling: ${MAX_AUTO} (source: ${SOURCE})"
+
       - name: Scan for bugs
         run: |
           cortex exec --file .cortex/prompts/scan.md \
             -c default --bypass --no-history \
-            --allowed "Read" --allowed "Bash(gh issue create *)"
+            --allowed "Read" \
+            --allowed "Bash(gh issue create *)" \
+            --allowed "Bash(gh label create *)"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COCO_MAX_AUTO: ${{ env.COCO_MAX_AUTO }}
 
       - name: Clean up credentials
         if: always()
