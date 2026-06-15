@@ -117,6 +117,7 @@ jobs:
         run: |
           cortex exec --file .cortex/prompts/scan.md \
             -c default --bypass --no-history \
+            --allowed "Glob" \
             --allowed "Read" \
             --allowed "Bash(gh issue create *)" \
             --allowed "Bash(gh label create *)"
