@@ -15,8 +15,7 @@ jobs:
         # /coco fix or /coco-agent fix on issues (not PR review threads).
         # Showing as 'Skipped' for other comments is expected behaviour.
         if: >-
-            !github.event.issue.pull_request &&
-            (contains(github.event.comment.body, '/coco fix') ||
+            !github.event.issue.pull_request && (contains(github.event.comment.body, '/coco fix') ||
              contains(github.event.comment.body, '/coco-agent fix'))
         uses: ./.github/workflows/cortex-fix.yml
         with:
