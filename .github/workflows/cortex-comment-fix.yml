@@ -11,8 +11,10 @@ permissions:
 
 jobs:
     coco-comment-fix:
-        # Only triggers on issue comments (not PR review comments) containing /coco fix
-        if: |
+        # Fires on all issue_comment events; if-condition restricts to
+        # /coco fix or /coco-agent fix on issues (not PR review threads).
+        # Showing as 'Skipped' for other comments is expected behaviour.
+        if: >-
             !github.event.issue.pull_request &&
             (contains(github.event.comment.body, '/coco fix') ||
              contains(github.event.comment.body, '/coco-agent fix'))
