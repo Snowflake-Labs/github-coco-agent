@@ -25,24 +25,34 @@ skill — you do not set it up manually.
 
 ---
 
+## Quick start
+
+1. Install [Cortex Code (CoCo)](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code)
+2. Install the scaffold plugin:
+   ```bash
+   cortex plugin install https://github.com/Snowflake-Labs/devops-snowflake-coco-agents
+   ```
+3. In the CoCo chat panel:
+   ```text
+   scaffold for agentic devops with GitHub
+   ```
+   or: `$devops-coco-agents:scaffold-for-github`
+
+The scaffold walks through six guided steps — repo creation, OIDC provisioning,
+secrets, branch protection — and lands you here in under 10 minutes.
+
+---
+
 ## How it works
 
-```
-push / schedule
-      │
-      ▼
-  cortex-scan
-  Score each finding:
-    SEVERITY × COMPLEXITY × CONFIDENCE
-      │                   │
-   auto-fix           needs-review
-   (coco:auto-fix)    (coco:needs-review)
-      │                   │
-  cortex-fix          developer comments
-  opens PR            /coco fix
-                          │
-                      cortex-fix
-                      opens PR
+```mermaid
+flowchart TD
+    trigger["push to main / weekly schedule"] --> scan["cortex-scan\nScore each finding\nSEVERITY × COMPLEXITY × CONFIDENCE"]
+    scan -->|"low risk"| autofix["Label: coco:auto-fix"]
+    scan -->|"higher risk"| review["Label: coco:needs-review"]
+    autofix --> fix1["cortex-fix\nopens PR automatically"]
+    review --> human["developer reviews\ncomments /coco fix"]
+    human --> fix2["cortex-fix\nopens PR on request"]
 ```
 
 ---
