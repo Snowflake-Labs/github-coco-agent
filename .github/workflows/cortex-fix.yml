@@ -1,7 +1,7 @@
 name: CoCo — Fix on [coco-agent] issue
 on:
   issues:
-    types: [opened, labeled]
+    types: [labeled]
   workflow_call:
     inputs:
       issue_number:
@@ -22,12 +22,10 @@ permissions:
 
 jobs:
   coco-fix:
-    # Triggered by: issues opened with [coco-agent] title (auto-fix path)
-    #             | issues labeled with coco:auto-fix
-    #             | workflow_call from cortex-comment-fix.yml (@coco fix)
+    # Triggered by: issues labeled with coco:auto-fix
+    #             | workflow_call from cortex-comment-fix.yml (/coco fix)
     if: |
       github.event_name == 'workflow_call' ||
-      (github.event.action == 'opened'  && startsWith(github.event.issue.title, '[coco-agent]')) ||
       (github.event.action == 'labeled' && github.event.label.name == 'coco:auto-fix')
     runs-on: ubuntu-latest
     env:

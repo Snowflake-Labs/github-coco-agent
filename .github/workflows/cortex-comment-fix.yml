@@ -1,4 +1,4 @@
-name: CoCo — Fix on @coco fix comment
+name: CoCo — Fix on /coco fix comment
 on:
     issue_comment:
         types: [created]
@@ -11,11 +11,11 @@ permissions:
 
 jobs:
     coco-comment-fix:
-        # Only triggers on issue comments (not PR review comments) containing @coco fix
+        # Only triggers on issue comments (not PR review comments) containing /coco fix
         if: |
             !github.event.issue.pull_request &&
-            (contains(github.event.comment.body, '@coco fix') ||
-             contains(github.event.comment.body, '@coco-agent fix'))
+            (contains(github.event.comment.body, '/coco fix') ||
+             contains(github.event.comment.body, '/coco-agent fix'))
         uses: ./.github/workflows/cortex-fix.yml
         with:
             issue_number: ${{ github.event.issue.number }}

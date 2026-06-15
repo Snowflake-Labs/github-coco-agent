@@ -61,7 +61,7 @@ For each issue found, in priority order (security first):
   If FIX_DECISION == "needs-review":
     gh issue create \
       --title "Bug: <short description>" \
-      --body "<file>:<function>\n\nCode: <problematic snippet>\nProblem: <why it is a bug>\nExpected: <what the correct behaviour should be>\n\n---\n_Severity: SEVERITY | Complexity: COMPLEXITY | Confidence: CONFIDENCE | Fix mode: needs-review_\n_To trigger fix: comment `@coco fix` on this issue._" \
+      --body "<file>:<function>\n\nCode: <problematic snippet>\nProblem: <why it is a bug>\nExpected: <what the correct behaviour should be>\n\n---\n_Severity: SEVERITY | Complexity: COMPLEXITY | Confidence: CONFIDENCE | Fix mode: needs-review_\n_To trigger fix: comment `/coco fix` on this issue._" \
       --label "coco:needs-review" \
       --label "coco-agent-security"  # or coco-agent-correctness
 

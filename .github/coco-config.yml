@@ -5,4 +5,4 @@ fix_mode:
     max_auto: conservative # aggressive | conservative | off
     # aggressive:   trust issue scoring — auto-fix when AI confidence is medium or high
     # conservative: auto-fix LOW severity + LOW complexity + HIGH confidence only (default)
-    # off:          never auto-fix — always require @coco fix comment on the issue
+    # off:          never auto-fix — always require /coco fix comment on the issue
