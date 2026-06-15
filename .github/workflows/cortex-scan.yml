@@ -7,6 +7,13 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch:
 
+# Prevent parallel scans from creating duplicate issues.
+# cancel-in-progress: push to demo/ during the Monday schedule window
+# would otherwise produce two simultaneous scans with identical findings.
+concurrency:
+  group: scan-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   id-token: write # GitHub OIDC token for Snowflake WIF
   contents: read
