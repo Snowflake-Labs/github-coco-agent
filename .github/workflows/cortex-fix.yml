@@ -60,6 +60,7 @@ jobs:
           printf '%s\n' \
             '[default]' \
             "account                    = \"${SNOWFLAKE_ACCOUNT}\"" \
+            "user                       = \"${SNOWFLAKE_USER}\"" \
             'authenticator              = "WORKLOAD_IDENTITY"' \
             'workload_identity_provider = "OIDC"' \
             "token                      = \"${SNOWFLAKE_TOKEN}\"" \
