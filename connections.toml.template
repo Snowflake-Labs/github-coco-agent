@@ -7,4 +7,5 @@ account  = "<your-account-identifier>"  # e.g. abc12345.us-east-1
 user     = "<PREFIX>_GITHUB_COCO_AGENT_USER"
 role     = "<PREFIX>_GITHUB_COCO_AGENT_ROLE"
 warehouse = "<PREFIX>_GITHUB_COCO_AGENT_WH"
-authenticator = "workload_identity"
+authenticator              = "WORKLOAD_IDENTITY"
+workload_identity_provider = "OIDC"

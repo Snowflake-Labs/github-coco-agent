@@ -26,3 +26,6 @@ config.toml
 .idea/
 .vscode/
 *.swp
+
+# Demo app — created by scaffold smoke test, never committed to template
+demo/
