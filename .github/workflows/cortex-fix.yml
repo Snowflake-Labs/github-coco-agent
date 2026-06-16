@@ -33,7 +33,6 @@ jobs:
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
       SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
       SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PAT: ${{ secrets.SNOWFLAKE_PAT }}
       # Resolve issue context — workflow_call inputs take priority over event payload
       ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
       ISSUE_TITLE: ${{ inputs.issue_title  || github.event.issue.title }}
@@ -50,18 +49,12 @@ jobs:
           git remote set-url origin \
             "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}"
 
-      - name: Set isolated Snowflake config dir (self-hosted)
-        if: runner.environment != 'github-hosted'
-        run: echo "SNOWFLAKE_HOME=/tmp/coco-${{ github.run_id }}" >> $GITHUB_ENV
-
       - name: Setup Snowflake connection (OIDC)
-        if: runner.environment == 'github-hosted'
         uses: snowflakedb/snowflake-cli-action@v2
         with:
           use-oidc: true
 
-      - name: Write cortex connections.toml (github-hosted — OIDC)
-        if: runner.environment == 'github-hosted'
+      - name: Write cortex connections.toml
         run: |
           mkdir -p "${HOME}/.snowflake"
           printf '%s\n' \
@@ -75,27 +68,11 @@ jobs:
             > "${HOME}/.snowflake/connections.toml"
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
-      - name: Write cortex connections.toml (self-hosted — PAT)
-        if: runner.environment != 'github-hosted'
+      - name: Install cortex (beta channel)
         run: |
-          mkdir -p "${SNOWFLAKE_HOME}"
-          printf '%s\n' \
-            '[default]' \
-            "account       = \"${SNOWFLAKE_ACCOUNT}\"" \
-            "user          = \"${SNOWFLAKE_USER}\"" \
-            'authenticator = "programmatic_access_token"' \
-            "token         = \"${SNOWFLAKE_PAT}\"" \
-            "warehouse     = \"${SNOWFLAKE_WAREHOUSE}\"" \
-            "role          = \"${SNOWFLAKE_ROLE}\"" \
-            > "${SNOWFLAKE_HOME}/connections.toml"
-          chmod 600 "${SNOWFLAKE_HOME}/connections.toml"
-
-      - name: Install cortex
-        run: |
-          if ! cortex exec --help > /dev/null 2>&1; then
-            curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
-            SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh
-          fi
+          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
+          SKIP_PODMAN=1 NON_INTERACTIVE=1 CORTEX_CHANNEL=beta sh /tmp/install.sh
+          rm /tmp/install.sh
 
       - name: Run CoCo
         env:
@@ -152,6 +129,4 @@ jobs:
 
       - name: Clean up credentials
         if: always()
-        run: |
-          rm -f "${HOME}/.snowflake/connections.toml"
-          rm -rf "/tmp/coco-${{ github.run_id }}"
+        run: rm -f "${HOME}/.snowflake/connections.toml"

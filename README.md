@@ -4,6 +4,12 @@
 > on GitHub Actions. Scan every push, score each finding, auto-fix the safe
 > ones, and route the rest to human review.
 
+> [!IMPORTANT]
+> Requires Cortex Code (CoCo) **beta channel**, version
+> `1.1.9+204229.0400c522997b` or later.
+> The workflows install from the beta channel automatically (`CORTEX_CHANNEL=beta`).
+> Verify: `cortex exec --version`
+
 This repository is provisioned by the
 [`$devops-coco-agents:scaffold-for-github`](https://github.com/Snowflake-Labs/devops-snowflake-coco-agents)
 skill — you do not set it up manually.

@@ -33,7 +33,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
 # SKIP_PODMAN=1  — no container-in-container needed in CI
 # NON_INTERACTIVE=1 — suppress all prompts during install
 # CLI_CACHE_BUST — bump this date to force a reinstall on next build
-ARG CLI_CACHE_BUST=2026-05-30
+ARG CLI_CACHE_BUST=2026-06-16
 RUN curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh \
     && SKIP_PODMAN=1 NON_INTERACTIVE=1 sh /tmp/install.sh \
     && rm /tmp/install.sh
