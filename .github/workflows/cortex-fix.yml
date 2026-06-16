@@ -25,8 +25,12 @@ jobs:
     # Triggered by: issues labeled with coco:auto-fix
     #             | workflow_call from cortex-comment-fix.yml (/coco fix)
     if: |
-      github.event_name == 'workflow_call' ||
+      github.event_name == 'issue_comment' ||
       (github.event.action == 'labeled' && github.event.label.name == 'coco:auto-fix')
+    # Prevent double-run when both label + /coco fix comment fire for same issue
+    concurrency:
+      group: fix-issue-${{ inputs.issue_number || github.event.issue.number }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
@@ -80,6 +84,15 @@ jobs:
           SKIP_PODMAN=1 NON_INTERACTIVE=1 CORTEX_CHANNEL=beta sh /tmp/install.sh
           rm /tmp/install.sh
 
+      - name: Configure gh auth for cortex sandbox
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "${HOME}/.config/gh"
+          printf 'github.com:\n    oauth_token: %s\n    git_protocol: https\n' "$GH_TOKEN" \
+            > "${HOME}/.config/gh/hosts.yml"
+          chmod 600 "${HOME}/.config/gh/hosts.yml"
+
       - name: Run CoCo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -115,22 +128,31 @@ jobs:
 
       - name: Open PR
         if: steps.push.outputs.has_changes == 'true'
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr create \
-            --title "fix(coco-agent): ${{ steps.push.outputs.subject }}" \
-            --body "Automated fix. Triggered by issue #${ISSUE_NUMBER}. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            --head "${{ steps.push.outputs.branch }}"
+          SUBJECT="${{ steps.push.outputs.subject }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          CHANGED=$(git diff HEAD~1 HEAD --name-only 2>/dev/null | head -10 | sed 's/^/- /')
+          PR_URL=$(gh pr create \
+            --title "fix(coco-agent): ${SUBJECT}" \
+            --body "$(printf '## What CoCo fixed\n\nCloses #%s: %s\n\n**Files changed:**\n%s\n\n---\n*Automated fix by [CoCo Agent](%s)*' \
+              "${ISSUE_NUMBER}" "${SUBJECT}" "${CHANGED}" "${RUN_URL}")" \
+            --head "${{ steps.push.outputs.branch }}")
+          echo "pr_url=${PR_URL}" >> $GITHUB_OUTPUT
 
       - name: Comment on issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          MSG="CoCo completed the task (run [${{ github.run_id }}](${RUN_URL}))."
-          [ "${{ steps.push.outputs.has_changes }}" = "true" ]  && MSG="${MSG} PR opened for review."
-          [ "${{ steps.push.outputs.has_changes }}" = "false" ] && MSG="${MSG} No file changes needed."
+          SUBJECT="${{ steps.push.outputs.subject }}"
+          if [ "${{ steps.push.outputs.has_changes }}" = "true" ]; then
+            MSG="CoCo fixed **${SUBJECT}** — ${{ steps.pr.outputs.pr_url }}"
+          else
+            MSG="CoCo reviewed this issue but no code changes were needed. [Run log](${RUN_URL})"
+          fi
           gh issue comment "${ISSUE_NUMBER}" --body "${MSG}"
 
       - name: Clean up credentials

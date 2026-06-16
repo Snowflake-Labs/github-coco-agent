@@ -92,6 +92,15 @@ jobs:
           echo "COCO_MAX_AUTO=${MAX_AUTO}" >> $GITHUB_ENV
           echo "::notice::Fix ceiling: ${MAX_AUTO} (source: ${SOURCE})"
 
+      - name: Configure gh auth for cortex sandbox
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "${HOME}/.config/gh"
+          printf 'github.com:\n    oauth_token: %s\n    git_protocol: https\n' "$GH_TOKEN" \
+            > "${HOME}/.config/gh/hosts.yml"
+          chmod 600 "${HOME}/.config/gh/hosts.yml"
+
       - name: Scan for bugs
         run: |
           cortex exec --file .cortex/prompts/scan.md \
@@ -101,7 +110,6 @@ jobs:
             --allowed "Bash(gh issue create *)" \
             --allowed "Bash(gh label create *)"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COCO_MAX_AUTO: ${{ env.COCO_MAX_AUTO }}
 
       - name: Clean up credentials
