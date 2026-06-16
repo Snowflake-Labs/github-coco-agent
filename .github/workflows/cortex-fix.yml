@@ -68,6 +68,11 @@ jobs:
             > "${HOME}/.snowflake/connections.toml"
           chmod 600 "${HOME}/.snowflake/connections.toml"
 
+      - name: Verify Snowflake OIDC connection
+        run: |
+          snow connection test -c default \
+            || { echo "::error::OIDC connection test failed. Check Snowflake WORKLOAD_IDENTITY trust configuration."; exit 1; }
+
       - name: Install cortex (beta channel)
         run: |
           curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
