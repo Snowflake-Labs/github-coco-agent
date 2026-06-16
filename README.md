@@ -35,13 +35,17 @@ skill — you do not set it up manually.
 
 1. Install [Cortex Code (CoCo)](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code)
 2. Install the scaffold plugin:
+
    ```bash
    cortex plugin install https://github.com/Snowflake-Labs/devops-snowflake-coco-agents
    ```
+
 3. In the CoCo chat panel:
+
    ```text
    scaffold for agentic devops with GitHub
    ```
+
    or: `$devops-coco-agents:scaffold-for-github`
 
 The scaffold walks through six guided steps — repo creation, OIDC provisioning,
@@ -82,6 +86,7 @@ Change the ceiling via PR — the git history is your audit trail.
 Set `COCO_MAX_AUTO` as a repository variable to override at runtime without a PR.
 
 Every scan run logs the active ceiling to the Actions summary:
+
 ```
 ::notice::Fix ceiling: conservative (source: .github/coco-config.yml)
 ```
@@ -91,14 +96,17 @@ Every scan run logs the active ceiling to the Actions summary:
 ## Setup
 
 This repository is set up by the CoCo scaffold skill, which provisions:
+
 - Snowflake SERVICE user, role, and warehouse with OIDC trust (no stored secrets)
 - All GitHub secrets and the `COCO_MAX_AUTO` variable
 - Branch protection
 
 To scaffold a new project using this template:
+
 ```text
 scaffold for agentic devops with GitHub
 ```
+
 or: `$devops-coco-agents:scaffold-for-github`
 
 See the [full scaffold guide](https://snowflake-labs.github.io/devops-snowflake-coco-agents/scaffold/github/).
