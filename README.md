@@ -131,11 +131,11 @@ on:
 
 ---
 
-## Token scopes
+## Permissions
 
-| Secret | Required scopes |
-|--------|----------------|
-| `GITHUB_TOKEN` (auto) | `repo` — create issues, PRs, labels |
+| Token | Required permissions |
+|--------|--------------------|
+| `GITHUB_TOKEN` (auto) | `issues: write`, `pull-requests: write`, `contents: write`, `id-token: write` — set in each workflow's `permissions:` block |
 | `SNOWFLAKE_*` secrets | Provisioned by scaffold skill via OIDC |
 
 ---
