@@ -107,7 +107,8 @@ jobs:
             -c default --bypass --no-history \
             --allowed "Glob" \
             --allowed "Read" \
-            --allowed "Bash(gh issue create *)" \
+            --allowed "Bash(gh issue list *)" \
+          --allowed "Bash(gh issue create *)" \
             --allowed "Bash(gh label create *)"
         env:
           COCO_MAX_AUTO: ${{ env.COCO_MAX_AUTO }}

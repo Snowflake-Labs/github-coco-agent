@@ -48,7 +48,17 @@ Routing policy by ceiling:
                    all other combinations → needs-review
 
 [Output]
-For each issue found, in priority order (security first):
+Before creating any issue, fetch existing open coco-agent issues once to prevent duplicates:
+  OPEN_TITLES=$(gh issue list --label coco-agent --state open \
+    --json title --jq '.[].title' 2>/dev/null || echo "")
+
+For each issue found, in priority order (security first), check before creating:
+  TITLE="<the title you are about to create>"
+  if echo "$OPEN_TITLES" | grep -qF "$TITLE"; then
+    echo "SKIP (already open): $TITLE"
+  else
+    <proceed with gh issue create below>
+  fi
 
   If FIX_DECISION == "auto-fix":
     gh issue create \
