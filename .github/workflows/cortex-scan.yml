@@ -15,9 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  id-token: write # GitHub OIDC token for Snowflake WIF
-  contents: read
-  issues: write # create issues + labels + comments
+  id-token: write       # GitHub OIDC token for Snowflake WIF
+  contents: write       # auto-fix job needs to push fix branches
+  issues: write         # create issues + labels + comments
+  pull-requests: write  # auto-fix job opens fix PRs
 
 jobs:
   scan:
