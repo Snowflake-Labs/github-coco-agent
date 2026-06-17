@@ -6,6 +6,7 @@ Decide per issue whether to auto-fix or request human review based on scoring an
 team's configured fix ceiling.
 
 [Requirements]
+
 - Read `.agentignore` from the repository root before scanning, if it exists.
   Parse it as gitignore-style patterns (lines starting with # are comments;
   blank lines are ignored). Skip any files or directories matching these patterns.
@@ -18,6 +19,7 @@ team's configured fix ceiling.
 
 [Constraints]
 Issue splitting rules (least-conflict path):
+
 - One issue per distinct location (file + function/line range).
   The same bug pattern in two different functions = two separate issues.
 - Exception: if two bugs are inside the same function body, combine them into
