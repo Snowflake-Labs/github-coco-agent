@@ -23,8 +23,10 @@ permissions:
 jobs:
   coco-fix:
     # Triggered by: issues labeled with coco:auto-fix
+    #             | workflow_call from cortex-scan.yml (auto-fix chain)
     #             | workflow_call from cortex-comment-fix.yml (/coco fix)
     if: |
+      github.event_name == 'workflow_call' ||
       github.event_name == 'issue_comment' ||
       (github.event.action == 'labeled' && github.event.label.name == 'coco:auto-fix')
     # Prevent double-run when both label + /coco fix comment fire for same issue

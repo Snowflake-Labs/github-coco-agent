@@ -22,6 +22,11 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    outputs:
+      auto_fix_found: ${{ steps.auto_fix_issue.outputs.found }}
+      auto_fix_number: ${{ steps.auto_fix_issue.outputs.number }}
+      auto_fix_title: ${{ steps.auto_fix_issue.outputs.title }}
+      auto_fix_body: ${{ steps.auto_fix_issue.outputs.body }}
     env:
       SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
@@ -113,6 +118,44 @@ jobs:
         env:
           COCO_MAX_AUTO: ${{ env.COCO_MAX_AUTO }}
 
+      - name: Capture auto-fix issue for workflow_call chain
+        id: auto_fix_issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_json=$(gh issue list \
+            --label "coco:auto-fix" --state open --limit 1 \
+            --json number,title,body 2>/dev/null || echo '[]')
+          number=$(echo "$issue_json" | python3 -c \
+            "import sys,json; r=json.load(sys.stdin); print(r[0]['number'] if r else '')" 2>/dev/null)
+          if [ -n "$number" ]; then
+            title=$(echo "$issue_json" | python3 -c \
+              "import sys,json; r=json.load(sys.stdin); print(r[0]['title'])")
+            body=$(echo "$issue_json" | python3 -c \
+              "import sys,json; r=json.load(sys.stdin); print(r[0]['body'])")
+            echo "found=true"   >> "$GITHUB_OUTPUT"
+            echo "number=$number" >> "$GITHUB_OUTPUT"
+            echo "title=$title"  >> "$GITHUB_OUTPUT"
+            { echo 'body<<BODY_EOF'; echo "$body"; echo 'BODY_EOF'; } >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Clean up credentials
         if: always()
         run: rm -f "${HOME}/.snowflake/connections.toml"
+
+  # Directly invoke the fix workflow for any coco:auto-fix issue found by the
+  # scan. Uses workflow_call so GITHUB_TOKEN identity is not involved — the
+  # labeled event created by GITHUB_TOKEN cannot trigger other workflows
+  # (GitHub security restriction), so we chain explicitly instead.
+  auto-fix:
+    needs: scan
+    if: needs.scan.outputs.auto_fix_found == 'true'
+    uses: ./.github/workflows/cortex-fix.yml
+    with:
+      issue_number: ${{ fromJson(needs.scan.outputs.auto_fix_number) }}
+      issue_title: ${{ needs.scan.outputs.auto_fix_title }}
+      issue_body: ${{ needs.scan.outputs.auto_fix_body }}
+    secrets: inherit
