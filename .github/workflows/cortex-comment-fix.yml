@@ -1,0 +1,36 @@
+name: CoCo — Fix on /coco fix comment
+on:
+    issue_comment:
+        types: [created]
+
+permissions:
+    id-token: write
+    contents: write
+    issues: write
+    pull-requests: write
+
+jobs:
+    coco-comment-fix:
+        # Fires on all issue_comment events; if-condition restricts to
+        # /coco fix or /coco-agent fix on issues (not PR review threads).
+        # Showing as 'Skipped' for other comments is expected behaviour.
+        #
+        # Security: only repo collaborators (OWNER, MEMBER, COLLABORATOR) can
+        # trigger the fix agent. Additionally the issue itself must have been
+        # created by a collaborator -- this prevents prompt injection via
+        # crafted issue bodies from external contributors.
+        if: >-
+            !github.event.issue.pull_request && (github.event.comment.author_association == 'OWNER' ||
+             github.event.comment.author_association == 'MEMBER' ||
+             github.event.comment.author_association == 'COLLABORATOR') &&
+            (github.event.issue.author_association == 'OWNER' ||
+             github.event.issue.author_association == 'MEMBER' ||
+             github.event.issue.author_association == 'COLLABORATOR') &&
+            (contains(github.event.comment.body, '/coco fix') ||
+             contains(github.event.comment.body, '/coco-agent fix'))
+        uses: ./.github/workflows/cortex-fix.yml
+        with:
+            issue_number: ${{ github.event.issue.number }}
+            issue_title: ${{ github.event.issue.title }}
+            issue_body: ${{ github.event.issue.body }}
+        secrets: inherit

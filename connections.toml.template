@@ -1,0 +1,11 @@
+# WARNING: NEVER commit credentials to this file.
+# This is a template only — copy it to ~/.snowflake/connections.toml and fill in values.
+# Secrets (tokens, passwords) go in GitHub secrets, NOT here.
+
+[default]
+account  = "<your-account-identifier>"  # e.g. abc12345.us-east-1
+user     = "<PREFIX>_GH_<REPO>_COCO_AGENT_USER"
+role     = "<PREFIX>_GH_<REPO>_COCO_AGENT_ROLE"
+warehouse = "<PREFIX>_GH_<REPO>_COCO_AGENT_WH"
+authenticator              = "WORKLOAD_IDENTITY"
+workload_identity_provider = "OIDC"
