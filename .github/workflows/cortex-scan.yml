@@ -38,36 +38,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Snowflake connection (OIDC)
+      - name: Setup Snowflake + Cortex Code
         uses: snowflakedb/snowflake-actions@v3
         with:
           use-oidc: true
-
-      - name: Write cortex connections.toml
-        run: |
-          mkdir -p "${HOME}/.snowflake"
-          printf '%s\n' \
-            '[default]' \
-            "account                    = \"${SNOWFLAKE_ACCOUNT}\"" \
-            "user                       = \"${SNOWFLAKE_USER}\"" \
-            'authenticator              = "WORKLOAD_IDENTITY"' \
-            'workload_identity_provider = "OIDC"' \
-            "token                      = \"${SNOWFLAKE_TOKEN}\"" \
-            "warehouse                  = \"${SNOWFLAKE_WAREHOUSE}\"" \
-            "role                       = \"${SNOWFLAKE_ROLE}\"" \
-            > "${HOME}/.snowflake/connections.toml"
-          chmod 600 "${HOME}/.snowflake/connections.toml"
+          cortex-code: true
+          cortex-channel: beta
+          connection-name: default
 
       - name: Verify Snowflake OIDC connection
         run: |
           snow connection test -c default \
             || { echo "::error::OIDC connection test failed. Check Snowflake WORKLOAD_IDENTITY trust configuration."; exit 1; }
-
-      - name: Install cortex (beta channel)
-        run: |
-          curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh -o /tmp/install.sh
-          SKIP_PODMAN=1 NON_INTERACTIVE=1 CORTEX_CHANNEL=beta sh /tmp/install.sh
-          rm /tmp/install.sh
 
       - name: Ensure coco labels exist
         env:
@@ -145,7 +127,7 @@ jobs:
 
       - name: Clean up credentials
         if: always()
-        run: rm -f "${HOME}/.snowflake/connections.toml" "${HOME}/.config/gh/hosts.yml"
+        run: rm -f "${HOME}/.config/gh/hosts.yml"
 
   # Directly invoke the fix workflow for any coco:auto-fix issue found by the
   # scan. Uses workflow_call so GITHUB_TOKEN identity is not involved — the
