@@ -4,10 +4,8 @@
 > on GitHub Actions. Scan every push, score each finding, auto-fix the safe
 > ones, and route the rest to human review.
 
-> [!IMPORTANT]
-> Requires Cortex Code (CoCo) **beta channel**, version
-> `1.1.9+204229.0400c522997b` or later.
-> The workflows install from the beta channel automatically (`CORTEX_CHANNEL=beta`).
+> [!NOTE]
+> Requires Cortex Code (CoCo) **v1.1.41** or later (`cortex exec` is GA).
 > Verify: `cortex exec --version`
 
 This repository is provisioned by the

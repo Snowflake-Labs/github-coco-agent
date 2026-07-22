@@ -43,7 +43,6 @@ jobs:
         with:
           use-oidc: true
           cortex-code: true
-          cortex-channel: beta
           connection-name: default
 
       - name: Verify Snowflake OIDC connection
