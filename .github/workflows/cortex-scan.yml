@@ -129,12 +129,22 @@ jobs:
         run: rm -f "${HOME}/.config/gh/hosts.yml"
 
   # Directly invoke the fix workflow for any coco:auto-fix issue found by the
-  # scan. Uses workflow_call so GITHUB_TOKEN identity is not involved — the
-  # labeled event created by GITHUB_TOKEN cannot trigger other workflows
-  # (GitHub security restriction), so we chain explicitly instead.
+  # scan. Events created by GITHUB_TOKEN (such as the coco:auto-fix label added
+  # by the scan) cannot trigger other workflows, so we chain via workflow_call,
+  # which is not subject to that rule.
+  #
+  # The called workflow still runs with this caller's GITHUB_TOKEN, and its
+  # permissions are capped at what is granted to this calling job. The
+  # workflow-level block above is read-only for contents/pull-requests, so this
+  # job needs its own block matching cortex-fix.yml's top-level permissions.
   auto-fix:
     needs: scan
     if: needs.scan.outputs.auto_fix_found == 'true'
+    permissions:
+      id-token: write # Snowflake OIDC in cortex-fix
+      contents: write # push fix branch
+      issues: write # comment on issue
+      pull-requests: write # open PR
     uses: ./.github/workflows/cortex-fix.yml
     with:
       issue_number: ${{ fromJson(needs.scan.outputs.auto_fix_number) }}
