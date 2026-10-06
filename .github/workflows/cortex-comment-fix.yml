@@ -15,15 +15,17 @@ jobs:
         # /coco fix or /coco-agent fix on issues (not PR review threads).
         # Showing as 'Skipped' for other comments is expected behaviour.
         #
-        # Security: only repo collaborators (OWNER, MEMBER, COLLABORATOR) can
-        # trigger the fix agent. Additionally the issue itself must have been
-        # created by a collaborator -- this prevents prompt injection via
-        # crafted issue bodies from external contributors.
+        # Security: two gates prevent prompt injection via crafted issue bodies:
+        # 1. Commenter gate — only OWNER/MEMBER/COLLABORATOR can trigger /coco fix
+        # 2. Issue author gate — the issue must have been created by the scan bot
+        #    (github-actions[bot]) or by a repo collaborator. External contributor
+        #    issues are blocked even if a collaborator comments /coco fix on them.
         if: >-
             !github.event.issue.pull_request && (github.event.comment.author_association == 'OWNER' ||
              github.event.comment.author_association == 'MEMBER' ||
              github.event.comment.author_association == 'COLLABORATOR') &&
-            (github.event.issue.author_association == 'OWNER' ||
+            (github.event.issue.user.login == 'github-actions[bot]' ||
+             github.event.issue.author_association == 'OWNER' ||
              github.event.issue.author_association == 'MEMBER' ||
              github.event.issue.author_association == 'COLLABORATOR') &&
             (contains(github.event.comment.body, '/coco fix') ||
